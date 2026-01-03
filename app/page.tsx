@@ -63,12 +63,35 @@ export default function Dashboard() {
     });
   }
 
+  function formatXAxis(time: string, range: Range) {
+    const date = new Date(time);
+
+    if (range === 'daily') {
+      return date.toLocaleTimeString('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    }
+
+    return date.toLocaleDateString('id-ID', {
+      day: '2-digit',
+      month: 'short',
+    });
+  }
+
   function mergeSensorData(celArr: any[], humArr: any[]) {
     return celArr.map((cel) => {
-      const hum = humArr.find((h) => new Date(h.time ?? h.created_at).getTime() === new Date(cel.time ?? cel.created_at).getTime());
+      const celTime = new Date(cel.time ?? cel.created_at).getTime();
+
+      const hum = humArr.find((h) => {
+        const humTime = new Date(h.time ?? h.created_at).getTime();
+
+        // toleransi 5 menit
+        return Math.abs(humTime - celTime) <= 5 * 60 * 1000;
+      });
 
       return {
-        time: cel.time ?? cel.created_at,
+        time: new Date(celTime).toISOString(),
         celcius: cel.value ?? cel.degrees,
         humidity: hum?.value ?? hum?.percent ?? null,
       };
@@ -113,7 +136,7 @@ export default function Dashboard() {
 
     fetchLatest();
   }, []);
-  // console.log('chartData state:', chartData);
+  console.log(chartData.filter((d) => d.humidity !== null).length, 'humidity points');
 
   return (
     <main className="min-h-screen bg-black p-6">
@@ -169,7 +192,7 @@ export default function Dashboard() {
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData}>
-                    <XAxis dataKey="time" stroke="#888" />
+                    <XAxis dataKey="time" tickFormatter={(value) => formatXAxis(value, selectedRange)} stroke="#888" minTickGap={20} />
                     <YAxis stroke="#888" />
                     <Tooltip />
                     <Line type="monotone" dataKey="celcius" stroke="#4ade80" strokeWidth={2} />
