@@ -63,20 +63,31 @@ export default function Dashboard() {
     });
   }
 
-  function formatXAxis(time: string, range: Range) {
+  function formatXAxis(time: string, mode: Range) {
     const date = new Date(time);
 
-    if (range === 'daily') {
+    if (mode === 'daily') {
+      // 09:45
       return date.toLocaleTimeString('id-ID', {
         hour: '2-digit',
         minute: '2-digit',
       });
     }
 
-    return date.toLocaleDateString('id-ID', {
-      day: '2-digit',
-      month: 'short',
-    });
+    if (mode === 'weekly') {
+      // Sen, Sel, Rab, Kam, Jum, Sab, Min
+      return date.toLocaleDateString('id-ID', {
+        weekday: 'short',
+      });
+    }
+
+    if (mode === 'monthly') {
+      // Week 1 - Week 4
+      const weekOfMonth = Math.ceil(date.getDate() / 7);
+      return `Week ${weekOfMonth}`;
+    }
+
+    return '';
   }
 
   function mergeSensorData(celArr: any[], humArr: any[]) {
