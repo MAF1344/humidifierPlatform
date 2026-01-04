@@ -18,11 +18,11 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           script: |
             set -e
-            APP_DIR="/opt/nextjs-app"
+            APP_DIR="/opt/fe-smartHumidifier"
 
             if [ ! -d "$APP_DIR/.git" ]; then
               mkdir -p "$APP_DIR"
-              git clone https://github.com/OWNER/REPO.git "$APP_DIR"
+              git clone https://github.com/MAF1344/humidifierPlatform.git "$APP_DIR"
             fi
 
             cd "$APP_DIR"
