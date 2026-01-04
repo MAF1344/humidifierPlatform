@@ -1,0 +1,32 @@
+name: Deploy
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH deploy (docker compose)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            set -e
+            APP_DIR="/opt/nextjs-app"
+
+            if [ ! -d "$APP_DIR/.git" ]; then
+              mkdir -p "$APP_DIR"
+              git clone https://github.com/OWNER/REPO.git "$APP_DIR"
+            fi
+
+            cd "$APP_DIR"
+            git pull origin main
+
+            docker compose up -d --build --remove-orphans
+            docker image prune -f
