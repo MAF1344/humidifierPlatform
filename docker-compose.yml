@@ -1,0 +1,7 @@
+services:
+  web:
+    build: .
+    container_name: fe-smartHumidifier
+    restart: always
+    ports:
+      - "3001:3000"
