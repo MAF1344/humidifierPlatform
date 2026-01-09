@@ -214,8 +214,8 @@ export default function Dashboard() {
                     <XAxis dataKey="time" tickFormatter={(value) => formatXAxis(value, selectedRange)} stroke="#888" minTickGap={20} />
                     <YAxis stroke="#888" />
                     <Tooltip />
-                    <Line type="monotone" dataKey="celcius" stroke="#4ade80" strokeWidth={2} />
-                    <Line type="monotone" dataKey="humidity" stroke="#60a5fa" strokeWidth={2} />
+                    <Line type="monotone" dataKey="celcius" stroke="#4ade80" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="humidity" stroke="#60a5fa" strokeWidth={2} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
               )}
