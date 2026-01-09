@@ -31,6 +31,9 @@ export default function Dashboard() {
   const [humidity, setHumidity] = useState<number | null>(null);
   const [chartData, setChartData] = useState<ChartPoint[]>([]);
   const [relayOn, setRelayOn] = useState(false);
+  const [mode, setMode] = useState<'auto' | 'manual'>('manual');
+  const [deviceState, setDeviceState] = useState<'on' | 'off'>('off');
+  const isManual = mode === 'manual';
 
   function getTemperatureStatus(value: number | null) {
     if (value === null) return 'Tidak Ada Data';
@@ -176,15 +179,30 @@ export default function Dashboard() {
         </Card>
 
         {/* RELAY */}
-        <Card className="bg-zinc-900 border-zinc-800 flex items-center justify-center text-white">
-          <CardContent className="p-6 text-center">
-            <h2 className="text-xl font-semibold mb-4">Toggle</h2>
+        <Card className="bg-zinc-900 border-zinc-800 text-white">
+          <CardContent className="p-6 text-center space-y-4">
+            <h2 className="text-xl font-semibold">Toggle</h2>
 
-            <Button onClick={toggleRelay} variant={relayOn ? 'default' : 'outline'} className={relayOn ? 'bg-green-600 hover:bg-green-700' : 'text-zinc-400'}>
-              {relayOn ? 'ON' : 'OFF'}
-            </Button>
+            <div className="flex items-center justify-center gap-4">
+              {/* AUTO / MANUAL */}
+              <Button onClick={() => setMode(mode === 'auto' ? 'manual' : 'auto')} className={`w-32 ${mode === 'auto' ? 'bg-[#60a5fa] text-white' : 'bg-zinc-700 text-zinc-300'}`}>
+                {mode === 'auto' ? 'AUTO' : 'MANUAL'}
+              </Button>
 
-            <p className="mt-2 text-sm text-zinc-400">Status: {relayOn ? 'Aktif' : 'Nonaktif'}</p>
+              {/* ON / OFF */}
+              <div className="flex justify-center">
+                <button
+                  disabled={mode !== 'manual'}
+                  onClick={() => setDeviceState(deviceState === 'on' ? 'off' : 'on')}
+                  className={`relative w-16 h-8 rounded-full transition-colors ${mode !== 'manual' ? 'bg-zinc-600 cursor-not-allowed' : deviceState === 'on' ? 'bg-[#4ade80]' : 'bg-zinc-700'}`}>
+                  <span className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${deviceState === 'on' ? 'translate-x-8' : ''}`} />
+                </button>
+              </div>
+            </div>
+
+            <p className="text-sm text-zinc-400">
+              Mode: {mode.toUpperCase()} | Status: {deviceState.toUpperCase()}
+            </p>
           </CardContent>
         </Card>
       </section>
@@ -197,11 +215,20 @@ export default function Dashboard() {
               <h2 className="text-2xl font-semibold text-white">Distribusi Data</h2>
 
               <div className="flex gap-2">
-                {(['daily', 'weekly', 'monthly'] as Range[]).map((range) => (
-                  <Button key={range} size="sm" variant={selectedRange === range ? 'default' : 'outline'} onClick={() => setSelectedRange(range)}>
-                    {range}
-                  </Button>
-                ))}
+                {(['daily', 'weekly', 'monthly'] as Range[]).map((range) => {
+                  const isActive = selectedRange === range;
+
+                  return (
+                    <Button
+                      key={range}
+                      size="sm"
+                      variant={isActive ? 'outline' : 'default'}
+                      onClick={() => setSelectedRange(range)}
+                      className={`transition-all duration-200 hover:scale-105 ${isActive ? 'hover:bg-gray-100 hover:text-gray-900' : 'hover:bg-gray-800'}`}>
+                      {range}
+                    </Button>
+                  );
+                })}
               </div>
             </div>
 
@@ -212,10 +239,10 @@ export default function Dashboard() {
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData}>
                     <XAxis dataKey="time" tickFormatter={(value) => formatXAxis(value, selectedRange)} stroke="#888" minTickGap={20} />
-                    <YAxis stroke="#888" />
+                    <YAxis domain={[-50, 200]} stroke="#888" />
                     <Tooltip />
-                    <Line type="monotone" dataKey="celcius" stroke="#4ade80" strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="humidity" stroke="#60a5fa" strokeWidth={2} dot={false} />
+                    <Line type="natural" dataKey="celcius" stroke="#4ade80" strokeWidth={2} dot={false} />
+                    <Line type="natural" dataKey="humidity" stroke="#60a5fa" strokeWidth={2} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
               )}
