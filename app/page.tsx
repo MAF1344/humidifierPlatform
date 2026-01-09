@@ -30,6 +30,7 @@ export default function Dashboard() {
   const [temperature, setTemperature] = useState<number | null>(null);
   const [humidity, setHumidity] = useState<number | null>(null);
   const [chartData, setChartData] = useState<ChartPoint[]>([]);
+  const [relayOn, setRelayOn] = useState(false);
 
   function getTemperatureStatus(value: number | null) {
     if (value === null) return 'Tidak Ada Data';
@@ -109,6 +110,10 @@ export default function Dashboard() {
     });
   }
 
+  function toggleRelay() {
+    setRelayOn((prev) => !prev);
+  }
+
   useEffect(() => {
     async function fetchChartData() {
       try {
@@ -170,13 +175,16 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* RELAY (DUMMY) */}
+        {/* RELAY */}
         <Card className="bg-zinc-900 border-zinc-800 flex items-center justify-center text-white">
           <CardContent className="p-6 text-center">
             <h2 className="text-xl font-semibold mb-4">Toggle</h2>
-            <Button variant="outline" className="text-zinc-400">
-              OFF
+
+            <Button onClick={toggleRelay} variant={relayOn ? 'default' : 'outline'} className={relayOn ? 'bg-green-600 hover:bg-green-700' : 'text-zinc-400'}>
+              {relayOn ? 'ON' : 'OFF'}
             </Button>
+
+            <p className="mt-2 text-sm text-zinc-400">Status: {relayOn ? 'Aktif' : 'Nonaktif'}</p>
           </CardContent>
         </Card>
       </section>
