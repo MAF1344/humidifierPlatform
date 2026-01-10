@@ -3,15 +3,10 @@
 import {useEffect, useState} from 'react';
 import {Card, CardContent} from '@/components/ui/card';
 import {Button} from '@/components/ui/button';
-import {getLatestCelcius, getLatestHumidity, getStatistik, getRawCelcius, getRawHumidity} from '@/app/lib/api';
+import {getLatestCelcius, getLatestHumidity, getRawCelcius, getRawHumidity} from '@/app/lib/api';
 import {LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer} from 'recharts';
 
 type Range = 'daily' | 'weekly' | 'monthly';
-
-type StatItem = {
-  time: string;
-  value: number;
-};
 
 type ChartPoint = {
   time: string;
@@ -19,21 +14,28 @@ type ChartPoint = {
   humidity: number | null;
 };
 
-function getLatestByTime<T extends {time: string}>(arr: T[]): T | null {
-  if (!arr.length) return null;
+type RelayData = {
+  id: number;
+  reported_status: 'ON' | 'OFF';
+  mode: 'AUTO' | 'MANUAL';
+  manual_since: string;
+  updated_at: string;
+};
 
-  return arr.reduce((latest, item) => (new Date(item.time) > new Date(latest.time) ? item : latest));
-}
+// Gunakan API route lokal sebagai proxy
+const RELAY_API_URL = '/api/relay';
 
 export default function Dashboard() {
   const [selectedRange, setSelectedRange] = useState<Range>('weekly');
   const [temperature, setTemperature] = useState<number | null>(null);
   const [humidity, setHumidity] = useState<number | null>(null);
   const [chartData, setChartData] = useState<ChartPoint[]>([]);
-  const [relayOn, setRelayOn] = useState(false);
-  const [mode, setMode] = useState<'auto' | 'manual'>('manual');
-  const [deviceState, setDeviceState] = useState<'on' | 'off'>('off');
-  const isManual = mode === 'manual';
+
+  // State untuk relay dari API
+  const [relayMode, setRelayMode] = useState<'AUTO' | 'MANUAL'>('MANUAL');
+  const [relayStatus, setRelayStatus] = useState<'ON' | 'OFF'>('OFF');
+  const [isLoading, setIsLoading] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   function getTemperatureStatus(value: number | null) {
     if (value === null) return 'Tidak Ada Data';
@@ -53,16 +55,15 @@ export default function Dashboard() {
     const now = Date.now();
 
     const rangeMap: Record<Range, number> = {
-      daily: 24 * 60 * 60 * 1000, // 24 jam
-      weekly: 7 * 24 * 60 * 60 * 1000, // 7 hari
-      monthly: 30 * 24 * 60 * 60 * 1000, // 30 hari
+      daily: 24 * 60 * 60 * 1000,
+      weekly: 7 * 24 * 60 * 60 * 1000,
+      monthly: 30 * 24 * 60 * 60 * 1000,
     };
 
     const limit = rangeMap[range];
 
     return data.filter((item) => {
       const time = new Date(item.time ?? item.created_at).getTime();
-
       return now - time <= limit;
     });
   }
@@ -71,7 +72,6 @@ export default function Dashboard() {
     const date = new Date(time);
 
     if (mode === 'daily') {
-      // 09:45
       return date.toLocaleTimeString('id-ID', {
         hour: '2-digit',
         minute: '2-digit',
@@ -79,14 +79,12 @@ export default function Dashboard() {
     }
 
     if (mode === 'weekly') {
-      // Sen, Sel, Rab, Kam, Jum, Sab, Min
       return date.toLocaleDateString('id-ID', {
         weekday: 'short',
       });
     }
 
     if (mode === 'monthly') {
-      // Week 1 - Week 4
       const weekOfMonth = Math.ceil(date.getDate() / 7);
       return `Week ${weekOfMonth}`;
     }
@@ -100,8 +98,6 @@ export default function Dashboard() {
 
       const hum = humArr.find((h) => {
         const humTime = new Date(h.time ?? h.created_at).getTime();
-
-        // toleransi 5 menit
         return Math.abs(humTime - celTime) <= 5 * 60 * 1000;
       });
 
@@ -113,10 +109,107 @@ export default function Dashboard() {
     });
   }
 
-  function toggleRelay() {
-    setRelayOn((prev) => !prev);
+  // ===== FETCH RELAY STATUS =====
+  async function fetchRelayStatus() {
+    try {
+      setFetchError(null);
+      const response = await fetch(RELAY_API_URL, {
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data: RelayData = await response.json();
+      setRelayMode(data.mode);
+      setRelayStatus(data.reported_status);
+    } catch (error) {
+      console.error('Error fetching relay status:', error);
+      setFetchError(error instanceof Error ? error.message : 'Failed to fetch');
+    }
   }
 
+  // ===== UPDATE RELAY MODE (AUTO/MANUAL) =====
+  async function updateRelayMode(newMode: 'AUTO' | 'MANUAL') {
+    setIsLoading(true);
+    setFetchError(null);
+
+    try {
+      const response = await fetch(RELAY_API_URL, {
+        method: 'PATCH', // Changed from PUT to PATCH
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          mode: newMode,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data: RelayData = await response.json();
+      setRelayMode(data.mode);
+      setRelayStatus(data.reported_status);
+    } catch (error) {
+      console.error('Error updating relay mode:', error);
+      setFetchError(error instanceof Error ? error.message : 'Failed to update');
+      // Rollback on error
+      await fetchRelayStatus();
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  // ===== UPDATE RELAY STATUS (ON/OFF) =====
+  async function updateRelayStatus(newStatus: 'ON' | 'OFF') {
+    setIsLoading(true);
+    setFetchError(null);
+
+    try {
+      const response = await fetch(RELAY_API_URL, {
+        method: 'PATCH', // Changed from PUT to PATCH
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          reported_status: newStatus,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data: RelayData = await response.json();
+      setRelayMode(data.mode);
+      setRelayStatus(data.reported_status);
+    } catch (error) {
+      console.error('Error updating relay status:', error);
+      setFetchError(error instanceof Error ? error.message : 'Failed to update');
+      // Rollback on error
+      await fetchRelayStatus();
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  // ===== HANDLE MODE TOGGLE =====
+  function handleModeToggle() {
+    const newMode = relayMode === 'AUTO' ? 'MANUAL' : 'AUTO';
+    updateRelayMode(newMode);
+  }
+
+  // ===== HANDLE STATUS TOGGLE =====
+  function handleStatusToggle() {
+    if (relayMode !== 'MANUAL') return;
+    const newStatus = relayStatus === 'ON' ? 'OFF' : 'ON';
+    updateRelayStatus(newStatus);
+  }
+
+  // ===== FETCH CHART DATA =====
   useEffect(() => {
     async function fetchChartData() {
       try {
@@ -130,7 +223,6 @@ export default function Dashboard() {
         merged.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
 
         setChartData(merged);
-        // console.log('chartData merged:', merged);
         console.log(selectedRange, 'jumlah data:', merged.length);
       } catch (err) {
         console.error(err);
@@ -140,7 +232,7 @@ export default function Dashboard() {
     fetchChartData();
   }, [selectedRange]);
 
-  // ===== FETCH LATEST CARD DATA =====
+  // ===== FETCH LATEST SENSOR DATA =====
   useEffect(() => {
     async function fetchLatest() {
       try {
@@ -155,7 +247,16 @@ export default function Dashboard() {
 
     fetchLatest();
   }, []);
-  console.log(chartData.filter((d) => d.humidity !== null).length, 'humidity points');
+
+  // ===== FETCH RELAY STATUS ON MOUNT =====
+  useEffect(() => {
+    fetchRelayStatus();
+
+    // Poll relay status setiap 5 detik
+    const interval = setInterval(fetchRelayStatus, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <main className="min-h-screen bg-black p-6">
@@ -185,24 +286,31 @@ export default function Dashboard() {
 
             <div className="flex items-center justify-center gap-4">
               {/* AUTO / MANUAL */}
-              <Button onClick={() => setMode(mode === 'auto' ? 'manual' : 'auto')} className={`w-32 ${mode === 'auto' ? 'bg-[#60a5fa] text-white' : 'bg-zinc-700 text-zinc-300'}`}>
-                {mode === 'auto' ? 'AUTO' : 'MANUAL'}
+              <Button
+                onClick={handleModeToggle}
+                disabled={isLoading}
+                className={`w-32 transition-colors ${relayMode === 'AUTO' ? 'bg-[#60a5fa] text-white hover:bg-[#3b82f6]' : 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'} ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                {relayMode}
               </Button>
 
               {/* ON / OFF */}
               <div className="flex justify-center">
                 <button
-                  disabled={mode !== 'manual'}
-                  onClick={() => setDeviceState(deviceState === 'on' ? 'off' : 'on')}
-                  className={`relative w-16 h-8 rounded-full transition-colors ${mode !== 'manual' ? 'bg-zinc-600 cursor-not-allowed' : deviceState === 'on' ? 'bg-[#4ade80]' : 'bg-zinc-700'}`}>
-                  <span className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${deviceState === 'on' ? 'translate-x-8' : ''}`} />
+                  disabled={relayMode !== 'MANUAL' || isLoading}
+                  onClick={handleStatusToggle}
+                  className={`relative w-16 h-8 rounded-full transition-colors ${relayMode !== 'MANUAL' || isLoading ? 'bg-zinc-600 cursor-not-allowed' : relayStatus === 'ON' ? 'bg-[#4ade80]' : 'bg-zinc-700'}`}>
+                  <span className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${relayStatus === 'ON' ? 'translate-x-8' : ''}`} />
                 </button>
               </div>
             </div>
 
             <p className="text-sm text-zinc-400">
-              Mode: {mode.toUpperCase()} | Status: {deviceState.toUpperCase()}
+              Mode: {relayMode} | Status: {relayStatus}
             </p>
+
+            {isLoading && <p className="text-xs text-blue-400">Updating...</p>}
+
+            {fetchError && <p className="text-xs text-red-400">Error: {fetchError}</p>}
           </CardContent>
         </Card>
       </section>
