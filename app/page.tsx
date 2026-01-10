@@ -264,7 +264,7 @@ export default function Dashboard() {
         {/* TEMPERATURE */}
         <Card className="bg-zinc-900 border-zinc-800 text-white">
           <CardContent className="p-6">
-            <h2 className="text-xl font-semibold">Derajat</h2>
+            <h2 className="text-xl font-semibold">Suhu</h2>
             <p className="text-4xl mt-4">{temperature !== null ? `${temperature} °C` : '--'}</p>
             <p className="text-sm text-zinc-400 mt-2">{getTemperatureStatus(temperature)}</p>
           </CardContent>
@@ -273,7 +273,7 @@ export default function Dashboard() {
         {/* HUMIDITY */}
         <Card className="bg-zinc-900 border-zinc-800 text-white">
           <CardContent className="p-6">
-            <h2 className="text-xl font-semibold">Persen</h2>
+            <h2 className="text-xl font-semibold">Humidity</h2>
             <p className="text-4xl mt-4">{humidity !== null ? `${humidity} %` : '--'}</p>
             <p className="text-sm text-zinc-400 mt-2">{getHumidityStatus(humidity)}</p>
           </CardContent>
