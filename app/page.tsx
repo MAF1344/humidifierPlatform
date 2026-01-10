@@ -293,19 +293,28 @@ export default function Dashboard() {
                 {relayMode}
               </Button>
 
-              {/* ON / OFF */}
-              <div className="flex justify-center">
-                <button
-                  disabled={relayMode !== 'MANUAL' || isLoading}
-                  onClick={handleStatusToggle}
-                  className={`relative w-16 h-8 rounded-full transition-colors ${relayMode !== 'MANUAL' || isLoading ? 'bg-zinc-600 cursor-not-allowed' : relayStatus === 'ON' ? 'bg-[#4ade80]' : 'bg-zinc-700'}`}>
-                  <span className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${relayStatus === 'ON' ? 'translate-x-8' : ''}`} />
-                </button>
-              </div>
+              {/* ON / OFF - Only show in MANUAL mode */}
+              {relayMode === 'MANUAL' && (
+                <div className="flex justify-center">
+                  <button
+                    disabled={isLoading}
+                    onClick={handleStatusToggle}
+                    className={`relative w-16 h-8 rounded-full transition-colors ${isLoading ? 'bg-zinc-600 cursor-not-allowed' : relayStatus === 'ON' ? 'bg-[#4ade80]' : 'bg-zinc-700'}`}>
+                    <span className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${relayStatus === 'ON' ? 'translate-x-8' : ''}`} />
+                  </button>
+                </div>
+              )}
             </div>
 
+            {/* Status text - Show different info based on mode */}
             <p className="text-sm text-zinc-400">
-              Mode: {relayMode} | Status: {relayStatus}
+              {relayMode === 'AUTO' ? (
+                <>Mode: {relayMode} (Otomatis)</>
+              ) : (
+                <>
+                  Mode: {relayMode} | Status: {relayStatus}
+                </>
+              )}
             </p>
 
             {isLoading && <p className="text-xs text-blue-400">Updating...</p>}
